@@ -12,13 +12,22 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.6
-  google_maps_flutter: ^2.6.0   # ✅ Google Maps
-  geolocator: ^12.0.0           # ✅ For current location (works on Web, Android, iOS)
 
-  # Firebase packages (compatible versions)
-  firebase_core: ^4.1.1         # ✅ Core Firebase
-  cloud_firestore: ^6.0.2       # ✅ Firestore database
-  firebase_auth: ^6.1.0        # ✅ Firebase Authentication (optional)
+  # OpenStreetMap client for Flutter (replacement for google_maps_flutter)
+  flutter_map: ^5.0.0
+  latlong2: ^0.9.0
+
+  # Keep geolocator if you will use device GPS later
+  geolocator: ^12.0.0
+
+  # Firebase packages (keep your versions)
+  firebase_core: ^4.1.1
+  cloud_firestore: ^6.0.2
+  firebase_auth: ^6.1.0
+
+  # Optional: uncomment if you want clustering or tile caching later
+  # flutter_map_marker_cluster: ^1.0.0
+  # flutter_map_tile_caching: ^5.0.0
 
 dev_dependencies:
   flutter_test:
