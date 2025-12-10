@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
+// Screens
 import 'screens/splash.dart';
 import 'screens/login.dart';
-import 'screens/register.dart'; // ✅ Added this
+import 'screens/register.dart';
 import 'screens/home.dart';
 import 'screens/mapscreen.dart';
 import 'screens/busschedule.dart';
@@ -27,17 +28,22 @@ class CollegeBusTrackerApp extends StatelessWidget {
     return MaterialApp(
       title: 'College Bus Tracker',
       debugShowCheckedModeBanner: false,
+
+      // ----------- THEME -----------
       theme: ThemeData(
         primaryColor: const Color(0xFF010429),
         scaffoldBackgroundColor: const Color(0xFF010429),
+
         colorScheme: ColorScheme.fromSwatch().copyWith(
           primary: const Color(0xFF010429),
           secondary: const Color(0xFFFCC203),
         ),
+
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF010429),
           foregroundColor: Colors.white,
         ),
+
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFFCC203),
@@ -48,11 +54,13 @@ class CollegeBusTrackerApp extends StatelessWidget {
           ),
         ),
       ),
+
+      // ----------- ROUTES -----------
       initialRoute: '/splash',
       routes: {
         '/splash': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(), // ✅ Added
+        '/register': (context) => const RegisterScreen(),
         '/home': (context) => const HomeScreen(),
         '/mapscreen': (context) => const MapScreen(),
         '/busschedule': (context) => const BusScheduleScreen(),
@@ -62,4 +70,3 @@ class CollegeBusTrackerApp extends StatelessWidget {
     );
   }
 }
-
