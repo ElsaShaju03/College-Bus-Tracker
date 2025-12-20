@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Added
-import 'package:cloud_firestore/cloud_firestore.dart'; // Added
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // 🔹 Import Firestore
+import 'profile.dart';
+import 'addbus.dart'; 
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -10,286 +12,324 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _showProfile = false; // toggle for profile card
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // 🔹 State variable for the name
+  String _firstName = ""; 
+
+  // 🔹 Static Colors
+  static const Color yellow = Color(0xFFFFD31A);
+  static const Color cardColor = Color(0xFF8E9991);
+  static const Color drawerBg = Color(0xFF1A1A1A);
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserName(); // 🔹 Fetch name when screen loads
+  }
+
+  /// 🔹 FETCH USER NAME FROM FIRESTORE
+  Future<void> _fetchUserName() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists) {
+          Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
+          String fullName = data['name'] ?? "";
+          
+          if (fullName.isNotEmpty) {
+            // Split by space and take the first part
+            setState(() {
+              _firstName = fullName.split(' ')[0]; 
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching name: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF010429), Color(0xFF010429)], // dark navy solid
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              // Main content
-              Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 40),
+    final Size size = MediaQuery.of(context).size;
 
-                    // Grid for features
-                    Expanded(
-                      child: GridView.count(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 20,
-                        mainAxisSpacing: 20,
-                        children: [
-                          _buildDashboardCard(
-                            icon: Icons.directions_bus,
-                            label: "Bus Tracking",
-                            onTap: () {
-                              Navigator.pushNamed(context, '/mapscreen');
-                            },
-                          ),
-                          _buildDashboardCard(
-                            icon: Icons.schedule,
-                            label: "Bus Schedule",
-                            onTap: () {
-                              Navigator.pushNamed(context, '/busschedule');
-                            },
-                          ),
-                          _buildDashboardCard(
-                            icon: Icons.notifications,
-                            label: "Notifications",
-                            onTap: () {
-                              Navigator.pushNamed(context, '/notifications');
-                            },
-                          ),
-                          _buildDashboardCard(
-                            icon: Icons.help_outline,
-                            label: "Contact / Help",
-                            onTap: () {
-                              // Action for contact/help
-                            },
-                          ),
-                        ],
+    // Theme Logic
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final Color topSectionColor = isDarkMode ? const Color(0xFF121212) : yellow;
+    final Color bottomSheetColor = Theme.of(context).cardColor;
+    final Color headerTextColor = isDarkMode ? Colors.white : Colors.black;
+
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: topSectionColor,
+
+      // 🔹 FLOATING ACTION BUTTON
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.black,
+        child: const Icon(Icons.add, color: Colors.white),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddBusScreen()),
+          );
+        },
+      ),
+
+      /// 🔹 SIDE DRAWER
+      endDrawer: Drawer(
+        backgroundColor: drawerBg,
+        child: Column(
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(color: yellow),
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const CircleAvatar(
+                      backgroundColor: Colors.black,
+                      radius: 30,
+                      child: Icon(Icons.person, size: 40, color: yellow),
+                    ),
+                    const SizedBox(height: 10),
+                    // Display Name in Drawer too
+                    Text(
+                      _firstName.isNotEmpty ? "Hi, $_firstName" : "Welcome User",
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
               ),
+            ),
 
-              // Logout button at top right
-              Positioned(
-                top: 10,
-                right: 10,
-                child: IconButton(
-                  icon: const Icon(Icons.logout, color: Colors.white, size: 30),
-                  onPressed: () async { // Modified
-                    await FirebaseAuth.instance.signOut(); // Sign out from Firebase
-                    Navigator.pushReplacementNamed(context, '/login');
-                  },
-                ),
-              ),
-
-              // Profile button at top left
-              Positioned(
-                top: 10,
-                left: 10,
-                child: IconButton(
-                  icon: const Icon(Icons.person, color: Colors.white, size: 30),
-                  onPressed: () {
-                    setState(() {
-                      _showProfile = !_showProfile;
-                    });
-                  },
-                ),
-              ),
-
-              // Profile box overlay
-              if (_showProfile)
-                Positioned(
-                  top: 60,
-                  left: 20,
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.6,
-                    height: MediaQuery.of(context).size.height * 0.75,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 8,
-                          offset: Offset(2, 4),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _drawerTile(
+                    icon: Icons.person,
+                    title: "Profile",
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileScreen(),
                         ),
-                      ],
-                    ),
-                    child: StreamBuilder<DocumentSnapshot>( // New StreamBuilder
-                      stream: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(FirebaseAuth.instance.currentUser?.uid) // Get current user's UID
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        if (snapshot.hasError) {
-                          return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.red)));
-                        }
-                        if (!snapshot.hasData || !snapshot.data!.exists) {
-                          return const Center(child: Text('User data not found.', style: TextStyle(color: Colors.black)));
-                        }
+                      );
+                    },
+                  ),
+                  _drawerTile(
+                    icon: Icons.notifications,
+                    title: "Notifications",
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/notifications');
+                    },
+                  ),
+                  const Divider(color: Colors.grey, thickness: 0.5),
+                  _drawerTile(
+                    icon: Icons.help_outline,
+                    title: "Contact / Help",
+                    onTap: () => Navigator.pop(context),
+                  ),
+                  _drawerTile(
+                    icon: Icons.settings,
+                    title: "Settings",
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/settings');
+                    },
+                  ),
+                ],
+              ),
+            ),
 
-                        // Data is available
-                        var userData = snapshot.data!.data() as Map<String, dynamic>;
-                        String userName = userData['name']?.isNotEmpty == true ? userData['name'] : 'Student Name'; // Default if empty
-                        String userEmail = userData['email'] ?? 'No Email';
-                        String userPhone = userData['phone']?.isNotEmpty == true ? userData['phone'] : 'N/A';
-                        String assignedBus = userData['assignedBus']?.isNotEmpty == true ? userData['assignedBus'] : 'Not Assigned';
-                        String profileImageUrl = userData['profileImageUrl'] ?? 'assets/images/profile.png'; // Placeholder for image URL
+            Padding(
+              padding: const EdgeInsets.only(bottom: 20, top: 10),
+              child: _drawerTile(
+                icon: Icons.logout,
+                title: "Logout",
+                textColor: Colors.redAccent,
+                iconColor: Colors.redAccent,
+                onTap: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (context.mounted) {
+                    Navigator.pushReplacementNamed(context, '/login');
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
 
-                        return SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Avatar + Name
-                              Center(
-                                child: Column(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 40,
-                                      // Use NetworkImage if profileImageUrl is a URL, else AssetImage
-                                      backgroundImage: profileImageUrl.startsWith('http')
-                                          ? NetworkImage(profileImageUrl) as ImageProvider
-                                          : AssetImage(profileImageUrl),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      userName,
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                    const Text(
-                                      "Student", // You might want to make this dynamic later
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              const Divider(),
+      /// 🔹 BODY
+      body: Stack(
+        children: [
+          /// TOP IMAGE SECTION
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: size.height * 0.35,
+            child: Container(
+              color: topSectionColor,
+              alignment: Alignment.bottomCenter,
+              child: Image.asset(
+                'assets/images/home.png',
+                fit: BoxFit.contain,
+                width: double.infinity,
+              ),
+            ),
+          ),
 
-                              // Profile Details
-                              Text("📧 Email: $userEmail", style: const TextStyle(color: Colors.black)),
-                              const SizedBox(height: 8),
-                              Text("📱 Phone: $userPhone", style: const TextStyle(color: Colors.black)),
-                              const SizedBox(height: 8),
-                              Text("🚌 Bus No: $assignedBus", style: const TextStyle(color: Colors.black)),
-                              const SizedBox(height: 20),
-                              const Divider(),
-
-                              // Action buttons
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.pushNamed(context, '/profile');
-                                },
-                                icon: const Icon(Icons.edit, color: Colors.black),
-                                label: const Text("Edit Profile",
-                                    style: TextStyle(color: Colors.black)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFFCC203),
-                                  minimumSize: const Size(double.infinity, 45),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  // Implement settings later if needed
-                                },
-                                icon: const Icon(Icons.settings, color: Colors.black),
-                                label: const Text("Settings",
-                                    style: TextStyle(color: Colors.black)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFFCC203),
-                                  minimumSize: const Size(double.infinity, 45),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              ElevatedButton.icon(
-                                onPressed: () async { // Modified
-                                  await FirebaseAuth.instance.signOut(); // Explicit Firebase sign out
-                                  Navigator.pushReplacementNamed(context, '/login');
-                                },
-                                icon: const Icon(Icons.logout, color: Colors.white),
-                                label: const Text("Logout",
-                                    style: TextStyle(color: Colors.white)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.redAccent,
-                                  minimumSize: const Size(double.infinity, 45),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+          /// CONTENT
+          Column(
+            children: [
+              SizedBox(height: size.height * 0.35),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: bottomSheetColor,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(30),
+                      topRight: Radius.circular(30),
                     ),
                   ),
+                  padding: const EdgeInsets.fromLTRB(40, 40, 40, 0),
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 25,
+                    mainAxisSpacing: 25,
+                    children: [
+                      _menuCard(
+                        icon: Icons.directions_bus,
+                        title: "Bus Tracker",
+                        onTap: () => Navigator.pushNamed(context, '/mapscreen'),
+                      ),
+                      _menuCard(
+                        icon: Icons.calendar_month,
+                        title: "Bus Schedule",
+                        onTap: () => Navigator.pushNamed(context, '/busschedule'),
+                      ),
+                    ],
+                  ),
                 ),
+              ),
             ],
           ),
-        ),
+
+          /// 🔹 HEADER ICONS + GREETING
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Left Side: Notification Icon + Name
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.notifications, color: headerTextColor, size: 30),
+                        onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                      ),
+                      const SizedBox(width: 5), // Spacing
+                      
+                      // 🔹 GREETING TEXT
+                      if (_firstName.isNotEmpty)
+                        Text(
+                          "Hi $_firstName",
+                          style: TextStyle(
+                            color: headerTextColor,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Roboto', // Optional: change font if needed
+                          ),
+                        ),
+                    ],
+                  ),
+
+                  // Right Side: Menu Button
+                  IconButton(
+                    icon: Icon(Icons.menu, color: headerTextColor, size: 30),
+                    onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // Helper method for feature cards
-  Widget _buildDashboardCard({
+  static Widget _drawerTile({
     required IconData icon,
-    required String label,
+    required String title,
+    required VoidCallback onTap,
+    Color textColor = Colors.white,
+    Color iconColor = Colors.white,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: iconColor),
+      title: Text(title, style: TextStyle(color: textColor, fontSize: 16)),
+      onTap: onTap,
+    );
+  }
+
+  static Widget _menuCard({
+    required IconData icon,
+    required String title,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFCC203), Color(0xFFFCC203)], // gold solid
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: cardColor,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black26,
-              blurRadius: 6,
-              offset: Offset(2, 2),
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: Colors.black),
-            const SizedBox(height: 10),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(icon, color: Colors.black, size: 26),
+            ),
+            const SizedBox(height: 12),
             Text(
-              label,
+              title,
+              textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.black,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],

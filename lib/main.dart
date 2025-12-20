@@ -2,14 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
+// Screens
 import 'screens/splash.dart';
 import 'screens/login.dart';
-import 'screens/register.dart'; // ✅ Added this
+import 'screens/register.dart';
 import 'screens/home.dart';
 import 'screens/mapscreen.dart';
 import 'screens/busschedule.dart';
 import 'screens/notifications.dart';
 import 'screens/profile.dart';
+import 'screens/settings.dart'; // 🔹 Import Settings
+
+// 🔹 Global Theme Notifier to control Day/Night mode
+final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,42 +29,59 @@ class CollegeBusTrackerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'College Bus Tracker',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primaryColor: const Color(0xFF010429),
-        scaffoldBackgroundColor: const Color(0xFF010429),
-        colorScheme: ColorScheme.fromSwatch().copyWith(
-          primary: const Color(0xFF010429),
-          secondary: const Color(0xFFFCC203),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF010429),
-          foregroundColor: Colors.white,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFFCC203),
-            foregroundColor: Colors.black,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(10)),
+    // 🔹 Listen to the themeNotifier
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, currentMode, child) {
+        return MaterialApp(
+          title: 'College Bus Tracker',
+          debugShowCheckedModeBanner: false,
+
+          // ----------- LIGHT THEME -----------
+          theme: ThemeData(
+            brightness: Brightness.light,
+            primaryColor: const Color(0xFFFFD31A), // Yellow
+            scaffoldBackgroundColor: const Color(0xFFFFD31A), // Yellow top for Scaffold
+            cardColor: Colors.white, // White bottom sheet color
+            canvasColor: Colors.black, // Icon colors
+            
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFFFFD31A),
+              foregroundColor: Colors.black,
             ),
           ),
-        ),
-      ),
-      initialRoute: '/splash',
-      routes: {
-        '/splash': (context) => const SplashScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(), // ✅ Added
-        '/home': (context) => const HomeScreen(),
-        '/mapscreen': (context) => const MapScreen(),
-        '/busschedule': (context) => const BusScheduleScreen(),
-        '/notifications': (context) => const NotificationsScreen(),
-        '/profile': (context) => const ProfileScreen(),
+
+          // ----------- DARK THEME -----------
+          darkTheme: ThemeData(
+            brightness: Brightness.dark,
+            primaryColor: const Color(0xFFFFD31A), // Yellow stays same
+            scaffoldBackgroundColor: const Color(0xFF121212), // Dark top
+            cardColor: const Color(0xFF1E1E1E), // Dark Grey bottom sheet color
+            canvasColor: Colors.white, // Icon colors
+            
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFF121212),
+              foregroundColor: Colors.white,
+            ),
+          ),
+
+          themeMode: currentMode, // Applies the current mode
+
+          // ----------- ROUTES -----------
+          initialRoute: '/splash',
+          routes: {
+            '/splash': (context) => const SplashScreen(),
+            '/login': (context) => const LoginScreen(),
+            '/register': (context) => const RegisterScreen(),
+            '/home': (context) => HomeScreen(),
+            '/mapscreen': (context) => const MapScreen(),
+            '/busschedule': (context) => const BusScheduleScreen(),
+            '/notifications': (context) => const NotificationsScreen(),
+            '/profile': (context) => const ProfileScreen(),
+            '/settings': (context) => const SettingsScreen(), // 🔹 Add Route
+          },
+        );
       },
     );
   }
 }
-

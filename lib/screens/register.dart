@@ -10,6 +10,8 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  // 🔹 Added Name Controller
+  final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
@@ -18,7 +20,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
 
+  // 🔹 Define Colors (Matching Home Page)
+  static const Color yellow = Color(0xFFFFD31A);
+  static const Color darkBg = Color(0xFF121212);
+  static const Color inputFill = Color(0xFF1E1E1E);
+
   Future<void> _register() async {
+    // Basic Validation
+    if (nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter your name")),
+      );
+      return;
+    }
+
     if (passwordController.text.trim() != confirmPasswordController.text.trim()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Passwords do not match")),
@@ -37,185 +52,195 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       // 2️⃣ Save user data in Firestore (users collection)
       String uid = userCredential.user!.uid;
+      
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'name': nameController.text.trim(), // 🔹 Saving Name
         'email': emailController.text.trim(),
-        'name': '', // Empty initially, user can update later in profile.dart
-        'phone': '',
-        'assignedBus': '',
+        'phone': '', // Placeholder
+        'assignedBus': '', // Placeholder
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Registration successful! Please login.")),
-      );
+      // 3️⃣ Update Auth Profile (Optional but good for fast access)
+      await userCredential.user!.updateDisplayName(nameController.text.trim());
 
-      Navigator.pushReplacementNamed(context, '/login');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Registration successful! Logging in...")),
+        );
+        // Navigate to Home directly after registration, or Login
+        Navigator.pushReplacementNamed(context, '/home'); 
+      }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Registration failed")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? "Registration failed")),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF010429), Color(0xFF010429)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Padding(
+      backgroundColor: darkBg, // 🔹 Dark Background
+      body: Center(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // 🔹 Header
               const Text(
                 "CREATE ACCOUNT",
                 style: TextStyle(
-                  color: Color(0xFFFCC203),
+                  color: yellow,
                   fontSize: 16,
                   letterSpacing: 2,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 10),
               const Text(
                 "Register",
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 26,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 40),
 
-              // Email TextField
-              TextField(
+              // 🔹 Name Input (New)
+              _buildTextField(
+                controller: nameController,
+                hint: "Full Name",
+                icon: Icons.person_outline,
+              ),
+              const SizedBox(height: 20),
+
+              // 🔹 Email Input
+              _buildTextField(
                 controller: emailController,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: "Email",
-                  hintStyle: const TextStyle(color: Colors.white70),
-                  filled: true,
-                  fillColor: const Color(0xFF1B1E36),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                ),
+                hint: "Email",
+                icon: Icons.email_outlined,
               ),
               const SizedBox(height: 20),
 
-              // Password TextField
-              TextField(
+              // 🔹 Password Input
+              _buildTextField(
                 controller: passwordController,
+                hint: "Password",
+                icon: Icons.lock_outline,
                 obscureText: _obscurePassword,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: "Password",
-                  hintStyle: const TextStyle(color: Colors.white70),
-                  filled: true,
-                  fillColor: const Color(0xFF1B1E36),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide.none,
-                  ),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                      color: Colors.white70,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                ),
+                onToggleVisibility: () {
+                  setState(() => _obscurePassword = !_obscurePassword);
+                },
               ),
               const SizedBox(height: 20),
 
-              // Confirm Password TextField
-              TextField(
+              // 🔹 Confirm Password Input
+              _buildTextField(
                 controller: confirmPasswordController,
+                hint: "Confirm Password",
+                icon: Icons.lock_outline,
                 obscureText: _obscureConfirmPassword,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: "Confirm Password",
-                  hintStyle: const TextStyle(color: Colors.white70),
-                  filled: true,
-                  fillColor: const Color(0xFF1B1E36),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide.none,
-                  ),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                      color: Colors.white70,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureConfirmPassword = !_obscureConfirmPassword;
-                      });
-                    },
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                ),
+                onToggleVisibility: () {
+                  setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
+                },
               ),
               const SizedBox(height: 30),
 
-              // Register Button
-              GestureDetector(
-                onTap: _isLoading ? null : _register,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    color: const Color(0xFFFCC203),
+              // 🔹 Register Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _register,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: yellow,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
                   ),
-                  child: Center(
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Color(0xFF010429))
-                        : const Text(
-                            "Register",
-                            style: TextStyle(
-                              color: Color(0xFF010429),
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+                        )
+                      : const Text(
+                          "REGISTER",
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
-              const SizedBox(height: 40),
-              const Spacer(),
+              
+              const SizedBox(height: 30),
 
-              // Login Redirect
+              // 🔹 Login Redirect
               GestureDetector(
                 onTap: () {
                   Navigator.pushReplacementNamed(context, '/login');
                 },
-                child: const Text(
-                  "Already have an account? Login",
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                child: RichText(
+                  text: const TextSpan(
+                    text: "Already have an account? ",
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                    children: [
+                      TextSpan(
+                        text: "Login",
+                        style: TextStyle(
+                          color: yellow,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 20),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // 🔹 Helper Widget for TextFields
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool obscureText = false,
+    VoidCallback? onToggleVisibility,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.white54),
+        prefixIcon: Icon(icon, color: yellow),
+        filled: true,
+        fillColor: const Color(0xFF1E1E1E), // Dark card fill
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide.none,
+        ),
+        suffixIcon: onToggleVisibility != null
+            ? IconButton(
+                icon: Icon(
+                  obscureText ? Icons.visibility_off : Icons.visibility,
+                  color: Colors.white54,
+                ),
+                onPressed: onToggleVisibility,
+              )
+            : null,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       ),
     );
   }

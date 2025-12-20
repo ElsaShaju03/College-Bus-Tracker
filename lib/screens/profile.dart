@@ -10,33 +10,30 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  // 🔹 Match Colors with Home Screen
+  static const Color yellow = Color(0xFFFCB001);
+  static const Color darkCardBg = Color(0xFF1A1A1A);
+  static const Color whiteBg = Colors.white;
+
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _busController = TextEditingController();
 
   bool _isLoading = false;
-  User? _currentUser; // Store the current user object
-  String _profileImageUrl = 'assets/images/profile.png'; // Default or fetched image
+  User? _currentUser;
+  String _profileImageUrl = 'assets/images/profile.png';
 
   @override
   void initState() {
     super.initState();
-    _currentUser = FirebaseAuth.instance.currentUser; // Get current user once
+    _currentUser = FirebaseAuth.instance.currentUser;
     if (_currentUser != null) {
       _fetchUserData();
-    } else {
-      // Handle case where no user is logged in (shouldn't happen if routed correctly)
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No user logged in to view profile.')),
-        );
-        Navigator.pop(context); // Go back if no user
-      });
     }
   }
 
   Future<void> _fetchUserData() async {
-    if (!mounted) return; // Prevent setState if widget is disposed
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
@@ -45,14 +42,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .doc(_currentUser!.uid)
           .get();
 
-      if (userDoc.exists) {
-        if (!mounted) return; // Prevent setState if widget is disposed
+      if (userDoc.exists && userDoc.data() != null) {
+        Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
+
+        if (!mounted) return;
         setState(() {
-          _nameController.text = userDoc['name'] ?? '';
-          // Email is read-only, so we'll just display it directly
-          _phoneController.text = userDoc['phone'] ?? '';
-          _busController.text = userDoc['assignedBus'] ?? '';
-          _profileImageUrl = userDoc['profileImageUrl'] ?? 'assets/images/profile.png';
+          _nameController.text = data['name'] ?? '';
+          _phoneController.text = data['phone'] ?? '';
+          _busController.text = data['assignedBus'] ?? '';
+          
+          if (data.containsKey('profileImageUrl') && data['profileImageUrl'] != null) {
+             _profileImageUrl = data['profileImageUrl'];
+          }
         });
       }
     } catch (e) {
@@ -66,13 +67,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _saveChanges() async {
-    if (_currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No user logged in.')),
-      );
-      return;
-    }
-
+    if (_currentUser == null) return;
     if (!mounted) return;
     setState(() => _isLoading = true);
 
@@ -80,20 +75,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(_currentUser!.uid)
-          .update({
+          .set({
         'name': _nameController.text.trim(),
         'phone': _phoneController.text.trim(),
         'assignedBus': _busController.text.trim(),
-        // 'profileImageUrl': _profileImageUrl, // Uncomment if you add image upload logic
-      });
+      }, SetOptions(merge: true));
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully!')));
-    } on FirebaseException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error: ${e.message}')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -115,134 +105,170 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: whiteBg, // White Top Background
       appBar: AppBar(
-        title: const Text("Edit Profile"),
-        // Using theme-defined background color from main.dart
-        // backgroundColor: const Color(0xFF010429), // Ensure consistency
-      ),
-      body: Container( // Wrap with Container for gradient background
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF010429), Color(0xFF010429)], // dark navy solid
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+        backgroundColor: whiteBg,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          "Edit Profile",
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFFFCC203))) // Themed loading indicator
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    CircleAvatar(
-                      radius: 50,
-                      // Display fetched profile image or default
-                      backgroundImage: _profileImageUrl.startsWith('http')
-                          ? NetworkImage(_profileImageUrl) as ImageProvider
-                          : AssetImage(_profileImageUrl),
-                      backgroundColor: Colors.grey.shade200, // Background if image fails
-                    ),
-                    const SizedBox(height: 10),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          const SizedBox(height: 10),
+          
+          /// 🔹 Top Section: Avatar
+          Center(
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: yellow,
+                  child: CircleAvatar(
+                    radius: 46,
+                    backgroundImage: _profileImageUrl.startsWith('http')
+                        ? NetworkImage(_profileImageUrl) as ImageProvider
+                        : AssetImage(_profileImageUrl),
+                    backgroundColor: Colors.grey.shade200,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _currentUser?.email ?? 'N/A',
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 20),
 
-                    // Display User Email (read-only, from Firebase Auth)
-                    Text(
-                      _currentUser?.email ?? 'N/A',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-
-                    // Name
-                    _buildProfileTextField(
-                      controller: _nameController,
-                      labelText: "Name",
-                      icon: Icons.person_outline,
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Phone
-                    _buildProfileTextField(
-                      controller: _phoneController,
-                      labelText: "Phone Number",
-                      icon: Icons.phone_android,
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Bus No / Route
-                    _buildProfileTextField(
-                      controller: _busController,
-                      labelText: "Assigned Bus ID/Route",
-                      icon: Icons.directions_bus,
-                      // keyboardType: TextInputType.text, // Default
-                      // You might make this readOnly if the bus assignment is admin-controlled
-                    ),
-                    const SizedBox(height: 40),
-
-                    // Save Changes Button
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _saveChanges,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFCC203), // Your accent color
-                        foregroundColor: const Color(0xFF010429), // Text color for the button
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Color(0xFF010429))
-                          : const Text(
+          /// 🔹 Bottom Section: Yellow Container
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: yellow,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(30),
+                  topRight: Radius.circular(30),
+                ),
+              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: Colors.black))
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 10),
+                          _buildProfileTextField(
+                            controller: _nameController,
+                            labelText: "Name",
+                            icon: Icons.person_outline,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildProfileTextField(
+                            controller: _phoneController,
+                            labelText: "Phone Number",
+                            icon: Icons.phone_android,
+                            keyboardType: TextInputType.phone,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildProfileTextField(
+                            controller: _busController,
+                            labelText: "Assigned Bus ID/Route",
+                            icon: Icons.directions_bus,
+                          ),
+                          const SizedBox(height: 40),
+                          
+                          /// Save Button
+                          ElevatedButton(
+                            onPressed: _isLoading ? null : _saveChanges,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(double.infinity, 55),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 5,
+                            ),
+                            child: const Text(
                               "Save Changes",
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
+                          ),
+                          const SizedBox(height: 30),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
             ),
-      );
+          ),
+        ],
+      ),
+    );
   }
 
-  // Helper method for consistent text field styling
   Widget _buildProfileTextField({
     required TextEditingController controller,
     required String labelText,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
-    bool readOnly = false,
   }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      readOnly: readOnly,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        labelText: labelText,
-        labelStyle: const TextStyle(color: Colors.white70),
-        prefixIcon: Icon(icon, color: Colors.white70),
-        filled: true,
-        fillColor: const Color(0xFF1B1E36), // Your dark input field color
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide.none, // No border for a cleaner look with filled color
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 10, bottom: 5),
+          child: Text(
+            labelText,
+            style: const TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide.none,
+        Container(
+          decoration: BoxDecoration(
+            color: darkCardBg,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              prefixIcon: Icon(icon, color: yellow),
+              hintText: "Enter $labelText",
+              hintStyle: const TextStyle(color: Colors.white38),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            ),
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: const BorderSide(color: Color(0xFFFCC203), width: 2), // Accent border on focus
-        ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-      ),
+      ],
     );
   }
 }
